@@ -1,0 +1,30 @@
+# Real environment files (copy from the *.example templates)
+*.env
+.env
+!*.env.example
+
+# TLS certificates / keys
+nginx/certs/
+*.pem
+*.key
+*.crt
+
+# Runtime data of bind-mounted services
+redis/redisdata/
+minio/
+plugins/
+.appdata/
+
+# Legacy seller staging folder (no longer used by the nginx build)
+nginx/app/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python bytecode of the vendored Bitcart sources
+__pycache__/
+*.py[cod]

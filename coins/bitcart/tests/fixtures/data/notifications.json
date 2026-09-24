@@ -1,0 +1,17 @@
+{
+    "create": {
+        "name": "Telegram",
+        "provider": "Telegram",
+        "data": {}
+    },
+    "patch": {
+        "name": "Telegram2"
+    },
+    "response": {
+        "data": {},
+        "name": "Telegram",
+        "provider": "Telegram",
+        "metadata": {}
+    },
+    "count": 1
+}

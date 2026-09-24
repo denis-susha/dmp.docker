@@ -1,0 +1,41 @@
+# Seller dashboard (dmp.seller SPA, built into this image): seller.${DMP_DOMAIN} and its variants.
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name www.seller.${DMP_DOMAIN};
+    return 301 https://seller.${DMP_DOMAIN}$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name seller.${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.seller\.${DMP_DOMAIN}$;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name seller.${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.seller\.${DMP_DOMAIN}$;
+
+    access_log /dev/stdout apm;
+    if_modified_since before;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    include /etc/nginx/include/robots-disallow.conf;
+
+    # Client-side routing: unknown paths fall back to the SPA entry point.
+    location / {
+        try_files $uri /index.html;
+    }
+
+    error_page 404 /index.html;
+}

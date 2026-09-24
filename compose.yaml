@@ -1,0 +1,243 @@
+# DMP core stack. Always combine with an environment override:
+#   docker compose -f compose.yaml -f compose.override.dev.yaml  --env-file ./development.env up -d
+#   docker compose -f compose.yaml -f compose.override.prod.yaml --env-file ./production.env  up -d
+#
+# Service and container names double as DNS names used by the application configs
+# (postgres-dmp, dmp-db-billing, dmp-redis, dmp-minio, dmp-api-web, dmp-job-server, dmp-ui-client),
+# so do not rename them.
+
+x-postgres-healthcheck: &postgres-healthcheck
+    test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+
+services:
+    postgres-dmp:
+        container_name: dmp-postgres
+        image: postgres:16-bookworm
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_DMP_USER:?set POSTGRES_DMP_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_DMP_PASSWORD:?set POSTGRES_DMP_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DMP_DB:?set POSTGRES_DMP_DB}
+        ports:
+            - "127.0.0.1:5442:5432"
+        volumes:
+            - postgres-dmp-data:/var/lib/postgresql/data
+        healthcheck: *postgres-healthcheck
+        networks:
+            - dmp-ntw
+
+    billing-db-dmp:
+        container_name: dmp-db-billing
+        image: postgres:16-bookworm
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_DMP_BILLING_USER:?set POSTGRES_DMP_BILLING_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_DMP_BILLING_PASSWORD:?set POSTGRES_DMP_BILLING_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DMP_BILLING_DB:?set POSTGRES_DMP_BILLING_DB}
+        ports:
+            - "127.0.0.1:5452:5432"
+        volumes:
+            - dmp-db-billing-data:/var/lib/postgresql/data
+        healthcheck: *postgres-healthcheck
+        networks:
+            - dmp-ntw
+
+    redis-dmp:
+        container_name: dmp-redis
+        image: redis/redis-stack:7.4.0-v8
+        restart: unless-stopped
+        environment:
+            REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+        # The config file (with the RediSearch/RedisJSON modules) is mounted by the dev/prod override.
+        command: redis-server /usr/local/etc/redis/redis-stack.conf --requirepass ${REDIS_PASSWORD} --masterauth ${REDIS_PASSWORD}
+        volumes:
+            - ./redis/redisdata:/data
+        healthcheck:
+            test: ["CMD-SHELL", '[ "$$(redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping)" = "PONG" ]']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        networks:
+            - dmp-ntw
+
+    minio-dmp:
+        container_name: dmp-minio
+        # Last community image published by MinIO; newer releases are source-only.
+        image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+        restart: unless-stopped
+        command: server /data --console-address ":9001"
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+        volumes:
+            - ./minio/data:/data
+        healthcheck:
+            test: ["CMD", "mc", "ready", "local"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
+        networks:
+            - dmp-ntw
+
+    api.web-dmp:
+        container_name: dmp-api-web
+        image: dmp-apiweb
+        build:
+            context: ../dmp.api.web
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        env_file:
+            - path: ./env/api.web.env
+              required: false
+        environment:
+            ASPNETCORE_HTTP_PORTS: "80"
+            ASPNETCORE_HTTPS_PORTS: "443"
+            REDIS_HOST: dmp-redis
+            REDIS_PORT: "6379"
+            REDIS_PASSWORD: ${REDIS_PASSWORD}
+        depends_on:
+            postgres-dmp:
+                condition: service_healthy
+            billing-db-dmp:
+                condition: service_healthy
+            redis-dmp:
+                condition: service_healthy
+            minio-dmp:
+                condition: service_healthy
+        networks:
+            - dmp-ntw
+
+    job.invoiceworker-dmp:
+        container_name: dmp-job-invoiceworker
+        image: image-dmp-job-invoiceworker
+        build:
+            context: ../dmp.job.invoiceworker
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        env_file:
+            - path: ./env/job.invoiceworker.env
+              required: false
+        depends_on:
+            postgres-dmp:
+                condition: service_healthy
+            api.web-dmp:
+                condition: service_started
+        networks:
+            - dmp-ntw
+
+    job.trxworker-dmp:
+        container_name: dmp-job-trxworker
+        image: image-dmp-job-trxworker
+        build:
+            context: ../dmp.job.trxworker
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        env_file:
+            - path: ./env/job.trxworker.env
+              required: false
+        depends_on:
+            postgres-dmp:
+                condition: service_healthy
+            billing-db-dmp:
+                condition: service_healthy
+            api.web-dmp:
+                condition: service_started
+        networks:
+            - dmp-ntw
+
+    job.server-dmp:
+        container_name: dmp-job-server
+        image: image-dmp-job-server
+        build:
+            context: ../dmp.job.server
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        env_file:
+            - path: ./env/job.server.env
+              required: false
+        environment:
+            ASPNETCORE_HTTP_PORTS: "80"
+            ASPNETCORE_HTTPS_PORTS: "443"
+            REDIS_HOST: dmp-redis
+            REDIS_PORT: "6379"
+            REDIS_PASSWORD: ${REDIS_PASSWORD}
+        depends_on:
+            postgres-dmp:
+                condition: service_healthy
+            redis-dmp:
+                condition: service_healthy
+        networks:
+            - dmp-ntw
+
+    client-ui-dmp:
+        container_name: dmp-ui-client
+        build:
+            context: ../dmp.client
+            dockerfile: Dockerfile
+            # Next.js pre-renders pages against the public API during the build.
+            network: host
+            # NEXT_PUBLIC_* values are inlined into the client bundle at build time.
+            args:
+                NEXT_PUBLIC_HOST: ${CLIENT_HOST:-}
+                NEXT_PUBLIC_API_HOST_URL: ${CLIENT_API_HOST_URL:?set CLIENT_API_HOST_URL}
+                NEXT_PUBLIC_ACCESS_CONTROL_ALLOW_ORIGIN: ${CLIENT_HOST_URL:?set CLIENT_HOST_URL}
+                NEXT_PUBLIC_IMAGES_HOST_URL: ${CLIENT_IMAGES_HOST_URL:?set CLIENT_IMAGES_HOST_URL}
+                NEXT_PUBLIC_SELLER_HOST_URL: ${CLIENT_SELLER_HOST_URL:?set CLIENT_SELLER_HOST_URL}
+                NEXT_PUBLIC_CLIENT_HOST_URL: ${CLIENT_HOST_URL:?set CLIENT_HOST_URL}
+                NEXT_PUBLIC_CF_TURNSTILE_SITE_KEY: ${CLIENT_CF_TURNSTILE_SITE_KEY:?set CLIENT_CF_TURNSTILE_SITE_KEY}
+        restart: unless-stopped
+        networks:
+            - dmp-ntw
+
+    nginx-dmp:
+        container_name: dmp-nginx
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile
+            # The seller SPA (dmp.seller) is built inside the nginx image.
+            additional_contexts:
+                seller: ${SELLER_DIR:-../dmp.seller}
+            args:
+                UID: ${USER_ID:-1000}
+        restart: unless-stopped
+        logging:
+            options:
+                tag: "{{.Name}}"
+        environment:
+            DMP_DOMAIN: ${DMP_DOMAIN:?set DMP_DOMAIN}
+            # Only DMP_* variables are substituted into /etc/nginx/templates/*.template.
+            NGINX_ENVSUBST_FILTER: ^DMP_
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./nginx/certs:/etc/ssl/cloudflare:ro
+            - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ./nginx/templates:/etc/nginx/templates:ro
+            - ./nginx/include:/etc/nginx/include:ro
+        # nginx resolves static upstreams at startup, so every proxied service of this file must exist first.
+        depends_on:
+            api.web-dmp:
+                condition: service_started
+            job.server-dmp:
+                condition: service_started
+            client-ui-dmp:
+                condition: service_started
+            minio-dmp:
+                condition: service_started
+        networks:
+            - dmp-ntw
+
+volumes:
+    postgres-dmp-data:
+    dmp-db-billing-data:
+
+networks:
+    dmp-ntw:
+        driver: bridge

@@ -1,0 +1,4 @@
+bitcart/.circleci/
+bitcart/tests/
+**/__pycache__/
+**/.venv/

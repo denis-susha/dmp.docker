@@ -1,0 +1,20 @@
+{
+    "create": {
+        "name": "test",
+        "percent": 50,
+        "end_date": "2020-01-01 21:19:34.503627"
+    },
+    "patch": {
+        "name": "test2",
+        "percent": 70
+    },
+    "response": {
+        "currencies": "",
+        "description": "",
+        "name": "test",
+        "percent": 50,
+        "promocode": "",
+        "metadata": {}
+    },
+    "count": 1
+}

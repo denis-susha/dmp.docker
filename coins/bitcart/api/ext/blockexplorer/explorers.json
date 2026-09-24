@@ -1,0 +1,55 @@
+{
+    "btc": {
+        "mainnet": "https://blockstream.info/tx/{}",
+        "testnet": "https://blockstream.info/testnet/tx/{}"
+    },
+    "ltc": {
+        "mainnet": "https://live.blockcypher.com/ltc/tx/{}",
+        "testnet": "https://chain.so/tx/LTCTEST/{}"
+    },
+    "bch": {
+        "mainnet": "https://blockexplorer.one/bitcoin-cash/mainnet/tx/{}",
+        "testnet": "https://blockexplorer.one/bitcoin-cash/testnet/tx/{}",
+        "testnet4": "https://testnet4.chaingraph.cash/tx/{}",
+        "chipnet": "https://chipnet.chaingraph.cash/tx/{}"
+    },
+    "xmr": {
+        "mainnet": "",
+        "testnet": ""
+    },
+    "xrg": {
+        "mainnet": "https://explorer.ergon.network/tx/{}"
+    },
+    "bsty": {
+        "mainnet": "https://bstyexplorer.globalboost.info/tx/{}"
+    },
+    "eth": {
+        "mainnet": "https://etherscan.io/tx/{}",
+        "kovan": "https://kovan.etherscan.io/tx/{}",
+        "goerli": "https://goerli.etherscan.io/tx/{}",
+        "rinkeby": "https://rinkeby.etherscan.io/tx/{}",
+        "ropsten": "https://ropsten.etherscan.io/tx/{}",
+        "sepolia": "https://sepolia.etherscan.io/tx/{}"
+    },
+    "bnb": {
+        "mainnet": "https://bscscan.com/tx/{}",
+        "testnet": "https://testnet.bscscan.com/tx/{}"
+    },
+    "sbch": {
+        "mainnet": "https://smartscan.cash/tx/{}",
+        "testnet": "https://testnet.sonar.cash/tx/{}"
+    },
+    "matic": {
+        "mainnet": "https://polygonscan.com/tx/{}",
+        "testnet": "https://mumbai.polygonscan.com/tx/{}"
+    },
+    "trx": {
+        "mainnet": "https://tronscan.org/#/transaction/{}",
+        "nile": "https://nile.tronscan.org/#/transaction/{}",
+        "shasta": "https://shasta.tronscan.org/#/transaction/{}"
+    },
+    "grs": {
+        "mainnet": "https://esplora.groestlcoin.org/tx/{}",
+        "testnet": "https://esplora-test.groestlcoin.org/tx/{}"
+    }
+}

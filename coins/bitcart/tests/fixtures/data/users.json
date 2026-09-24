@@ -1,0 +1,20 @@
+{
+    "create": {
+        "email": "test@example.com",
+        "password": "12345"
+    },
+    "patch": {
+        "email": "test1@example.com",
+        "password": "12345"
+    },
+    "response": {
+        "email": "test@example.com",
+        "is_superuser": false,
+        "settings": {
+            "balance_currency": "USD",
+            "fetch_balance": true
+        },
+        "metadata": {}
+    },
+    "count": 2
+}

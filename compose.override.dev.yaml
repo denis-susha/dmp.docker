@@ -1,0 +1,66 @@
+# Development override: dev tooling (pgAdmin, Mailpit), host-reachable Redis and .NET user secrets.
+
+# Reuses the host's .NET user secrets and dev HTTPS certificate (Windows: %APPDATA%).
+x-dotnet-dev-volumes: &dotnet-dev-volumes
+    - ${APPDATA:-./.appdata}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+    - ${APPDATA:-./.appdata}/ASP.NET/Https:/home/app/.aspnet/https:ro
+
+services:
+    api.web-dmp:
+        environment:
+            ASPNETCORE_ENVIRONMENT: Development
+        volumes: *dotnet-dev-volumes
+
+    job.invoiceworker-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Development
+        volumes: *dotnet-dev-volumes
+
+    job.trxworker-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Development
+        volumes: *dotnet-dev-volumes
+
+    job.server-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Development
+        volumes: *dotnet-dev-volumes
+
+    nginx-dmp:
+        build:
+            args:
+                VAR_ENV: development
+
+    redis-dmp:
+        volumes:
+            - ./redis/dev-loc-redis.conf:/usr/local/etc/redis/redis-stack.conf:ro
+        ports:
+            - "127.0.0.1:6379:6379" # lets services started from the IDE on the host reach Redis
+
+    pgadmin-dmp:
+        container_name: pgadmin-dmp
+        image: dpage/pgadmin4:9
+        restart: unless-stopped
+        environment:
+            PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?set PGADMIN_DEFAULT_EMAIL}
+            PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?set PGADMIN_DEFAULT_PASSWORD}
+        ports:
+            - "5155:80"
+        depends_on:
+            postgres-dmp:
+                condition: service_healthy
+        networks:
+            - dmp-ntw
+
+    # SMTP catcher for job.server e-mails. Replaces the unmaintained MailHog; the old
+    # service name stays as an alias because the job server's dev config uses Host=mailhog-dmp.
+    mailpit-dmp:
+        image: axllent/mailpit:v1
+        restart: unless-stopped
+        ports:
+            - "1025:1025" # SMTP
+            - "8025:8025" # web UI
+        networks:
+            dmp-ntw:
+                aliases:
+                    - mailhog-dmp

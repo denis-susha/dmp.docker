@@ -1,0 +1,27 @@
+# Hangfire dashboard of dmp.job.server (admin only): jobserver.${DMP_DOMAIN}.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name jobserver.${DMP_DOMAIN};
+
+    access_log /dev/stdout apm;
+    if_modified_since before;
+
+    include /etc/nginx/include/restrict-access.conf;
+
+    proxy_buffering on;
+
+    location / {
+        proxy_pass http://dmp-job-server;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection keep-alive;
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_connect_timeout 30s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+}

@@ -1,0 +1,31 @@
+# Storefront (dmp.client, Next.js): ${DMP_DOMAIN} and its loc./dev*./stage* variants.
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name www.${DMP_DOMAIN};
+    return 301 https://${DMP_DOMAIN}$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.${DMP_DOMAIN}$;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name ${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.${DMP_DOMAIN}$;
+
+    access_log /dev/stdout apm;
+    if_modified_since before;
+
+    include /etc/nginx/include/client-defaults.conf;
+}

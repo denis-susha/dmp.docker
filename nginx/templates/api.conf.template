@@ -1,0 +1,48 @@
+# Public API (dmp.api.web): api.${DMP_DOMAIN} and its loc./dev*./stage* variants.
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name www.api.${DMP_DOMAIN};
+    return 301 https://api.${DMP_DOMAIN}$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.api\.${DMP_DOMAIN}$;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include /etc/nginx/include/ssl.conf;
+
+    server_name api.${DMP_DOMAIN} ~^(dev\d*|stage.*|loc)\.api\.${DMP_DOMAIN}$;
+
+    access_log /dev/stdout apm;
+    if_modified_since before;
+
+    include /etc/nginx/include/robots-disallow.conf;
+
+    # SignalR payment hub: long-lived WebSocket connections.
+    location /paymenthub {
+        proxy_pass http://dmp-api-web:80;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        include /etc/nginx/include/api-proxy.conf;
+    }
+}

@@ -1,0 +1,368 @@
+# Bitcart 0.9.0.0 crypto payment processor used by DMP for invoices.
+#   docker compose -f compose.bitcart.yml --env-file ./development.bitcart.env up -d
+#
+# Runs in the same Compose project (same directory => same default project name) as compose.yaml,
+# so both stacks share the dmp-ntw network: nginx proxies bitcart.<domain> to bitcart-admin/bitcart-backend,
+# and the DMP services call http://bitcart-backend:8000.
+#
+# Coin daemons are built from the vendored Bitcart 0.9.0.0 sources in ./coins/bitcart; keep the
+# bitcart/bitcart* image tags below in sync with that version.
+
+x-bitcart-networks-env: &bitcart-networks-env
+    BITCART_CRYPTOS: ${BITCART_CRYPTOS:-btc}
+    BTC_NETWORK: ${BTC_NETWORK:-mainnet}
+    BTC_LIGHTNING: ${BTC_LIGHTNING:-false}
+    BCH_NETWORK: ${BCH_NETWORK:-mainnet}
+    ETH_NETWORK: ${ETH_NETWORK:-mainnet}
+    BNB_NETWORK: ${BNB_NETWORK:-mainnet}
+    SBCH_NETWORK: ${SBCH_NETWORK:-mainnet}
+    MATIC_NETWORK: ${MATIC_NETWORK:-mainnet}
+    TRX_NETWORK: ${TRX_NETWORK:-mainnet}
+    XRG_NETWORK: ${XRG_NETWORK:-mainnet}
+    LTC_NETWORK: ${LTC_NETWORK:-mainnet}
+    LTC_LIGHTNING: ${LTC_LIGHTNING:-false}
+    BSTY_NETWORK: ${BSTY_NETWORK:-mainnet}
+    BSTY_LIGHTNING: ${BSTY_LIGHTNING:-false}
+    GRS_NETWORK: ${GRS_NETWORK:-mainnet}
+    GRS_LIGHTNING: ${GRS_LIGHTNING:-false}
+    XMR_NETWORK: ${XMR_NETWORK:-mainnet}
+
+# Settings shared by the API (bitcart-backend) and the background worker (bitcart-worker).
+x-bitcart-app-env: &bitcart-app-env
+    <<: *bitcart-networks-env
+    LOG_FILE: bitcart.log
+    BITCART_DATADIR: /datadir
+    BITCART_BACKUPS_DIR: /backups
+    BITCART_VOLUMES: /datadir /backups /plugins
+    DB_HOST: bitcart-database
+    DB_PORT: "5432"
+    REDIS_HOST: redis://bitcart-redis
+    BTC_HOST: bitcart-bitcoin
+    LTC_HOST: bitcart-litecoin
+    ETH_HOST: bitcart-ethereum
+    BCH_HOST: bitcart-bitcoincash
+    BNB_HOST: bitcart-binancecoin
+    MATIC_HOST: bitcart-polygon
+    TRX_HOST: bitcart-tron
+    XMR_HOST: bitcart-monero
+    UPDATE_URL: ${BITCART_UPDATE_URL:-https://api.bitcart.ai/updates/latest}
+    SSH_CONNECTION: root@host.docker.internal:22
+    SSH_KEY_FILE: ${BITCART_SSH_KEY_FILE}
+    SSH_AUTHORIZED_KEYS: ${BITCART_SSH_AUTHORIZED_KEYS}
+    BASH_PROFILE_SCRIPT: ${BASH_PROFILE_SCRIPT:-}
+    BITCART_BACKEND_PLUGINS_DIR: /plugins/backend
+    BITCART_ADMIN_PLUGINS_DIR: /plugins/admin
+    BITCART_STORE_PLUGINS_DIR: /plugins/store
+    BITCART_DAEMON_PLUGINS_DIR: /plugins/daemon
+    BITCART_DOCKER_PLUGINS_DIR: /plugins/docker
+    BITCART_HOST: ${BITCART_HOST:?set BITCART_HOST}
+    BITCART_ADMIN_HOST: ${BITCART_ADMIN_HOST:?set BITCART_ADMIN_HOST}
+    BITCART_REVERSEPROXY: ${BITCART_REVERSEPROXY:-nginx-https}
+    BITCART_HTTPS_ENABLED: ${BITCART_HTTPS_ENABLED:-false}
+
+x-bitcart-app-volumes: &bitcart-app-volumes
+    - bitcart_datadir:/datadir
+    - backup_datadir:/backups
+    - ./plugins/backend:/plugins/backend
+    - ./plugins/admin:/plugins/admin
+    - ./plugins/store:/plugins/store
+    - ./plugins/daemon:/plugins/daemon
+    - ./plugins/docker:/plugins/docker
+    - ${BITCART_HOST_SSH_AUTHORIZED_KEYS:-/root/.ssh/authorized_keys}:${BITCART_SSH_AUTHORIZED_KEYS:?set BITCART_SSH_AUTHORIZED_KEYS}
+
+services:
+    bitcart-admin:
+        container_name: bitcart-admin
+        image: bitcart/bitcart-admin:0.9.0.0
+        restart: unless-stopped
+        command: yarn start
+        environment:
+            BITCART_ADMIN_LOG_FILE: bitcart.log
+            BITCART_ADMIN_API_URL: ${BITCART_ADMIN_API_URL:?set BITCART_ADMIN_API_URL}
+            BITCART_ADMIN_ROOTPATH: ${BITCART_ADMIN_ROOTPATH:-/admin}
+            BITCART_STORE_HOST: ${BITCART_STORE_HOST}
+            BITCART_STORE_ROOTPATH: ${BITCART_STORE_ROOTPATH:-/}
+            ONE_DOMAIN_MODE: "true"
+        expose:
+            - "4000"
+        depends_on:
+            - bitcart-backend
+        networks:
+            - dmp-ntw
+
+    bitcart-backend:
+        container_name: bitcart-backend
+        image: bitcart/bitcart:0.9.0.0
+        restart: unless-stopped
+        command: bash -c "alembic upgrade head && gunicorn -c gunicorn.conf.py main:app"
+        environment:
+            <<: *bitcart-app-env
+            BITCART_BACKEND_ROOTPATH: ${BITCART_BACKEND_ROOTPATH:-/api}
+            BITCART_ADMIN_ROOTPATH: ${BITCART_ADMIN_ROOTPATH:-/admin}
+            ONE_DOMAIN_MODE: "true"
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            # Lets the backend reach the public store host through the host's default Docker bridge.
+            - ${BITCART_STORE_HOST:?set BITCART_STORE_HOST}:172.17.0.1
+        expose:
+            - "8000"
+        volumes: *bitcart-app-volumes
+        depends_on:
+            bitcart-database:
+                condition: service_healthy
+            bitcart-redis:
+                condition: service_healthy
+            bitcart-bitcoin:
+                condition: service_started
+            bitcart-litecoin:
+                condition: service_started
+            bitcart-ethereum:
+                condition: service_started
+            bitcart-bitcoincash:
+                condition: service_started
+            bitcart-binancecoin:
+                condition: service_started
+            bitcart-polygon:
+                condition: service_started
+            bitcart-tron:
+                condition: service_started
+            bitcart-monero:
+                condition: service_started
+        networks:
+            dmp-ntw:
+                aliases:
+                    - backend
+
+    bitcart-worker:
+        container_name: bitcart-worker
+        image: bitcart/bitcart:0.9.0.0
+        restart: unless-stopped
+        command: python3 worker.py
+        environment:
+            <<: *bitcart-app-env
+            BITCART_ADMIN_ROOTPATH: ${BITCART_ADMIN_ROOTPATH:-/}
+        extra_hosts:
+            - host.docker.internal:host-gateway
+        expose:
+            - "9020"
+        volumes: *bitcart-app-volumes
+        depends_on:
+            - bitcart-backend
+        networks:
+            dmp-ntw:
+                aliases:
+                    - worker
+
+    bitcart-bitcoin:
+        container_name: bitcart-bitcoin
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: btc.Dockerfile
+        environment:
+            BTC_NETWORK: ${BTC_NETWORK:-mainnet}
+            BTC_LIGHTNING: ${BTC_LIGHTNING:-false}
+            BTC_LIGHTNING_GOSSIP: ${BTC_LIGHTNING_GOSSIP:-false}
+            BTC_DEBUG: ${BTC_DEBUG:-false}
+        expose:
+            - "5000"
+        volumes:
+            - bitcoin_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - bitcoin
+
+    bitcart-litecoin:
+        container_name: bitcart-litecoin
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: ltc.Dockerfile
+        environment:
+            LTC_NETWORK: ${LTC_NETWORK:-mainnet}
+            LTC_LIGHTNING: ${LTC_LIGHTNING:-false}
+            LTC_LIGHTNING_GOSSIP: ${LTC_LIGHTNING_GOSSIP:-false}
+            LTC_DEBUG: ${LTC_DEBUG:-false}
+        expose:
+            - "5001"
+        volumes:
+            - litecoin_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - litecoin
+
+    bitcart-ethereum:
+        container_name: bitcart-ethereum
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: eth.Dockerfile
+        environment:
+            ETH_NETWORK: ${ETH_NETWORK:-mainnet}
+            # Default is the public endpoint shipped by upstream Bitcart; set ETH_SERVER to your own RPC.
+            ETH_SERVER: ${ETH_SERVER:-https://mainnet.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8}
+            ETH_ARCHIVE_SERVER: ${ETH_ARCHIVE_SERVER:-}
+            ETH_DEBUG: ${ETH_DEBUG:-false}
+        expose:
+            - "5002"
+        volumes:
+            - ethereum_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - ethereum
+
+    bitcart-bitcoincash:
+        container_name: bitcart-bitcoincash
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: bch.Dockerfile
+        environment:
+            BCH_NETWORK: ${BCH_NETWORK:-mainnet}
+            BCH_DEBUG: ${BCH_DEBUG:-false}
+        expose:
+            - "5004"
+        volumes:
+            - bitcoincash_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - bitcoincash
+
+    bitcart-binancecoin:
+        container_name: bitcart-binancecoin
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: bnb.Dockerfile
+        environment:
+            BNB_NETWORK: ${BNB_NETWORK:-mainnet}
+            BNB_SERVER: ${BNB_SERVER:-https://rpc.ankr.com/bsc}
+            BNB_ARCHIVE_SERVER: ${BNB_ARCHIVE_SERVER:-}
+            BNB_DEBUG: ${BNB_DEBUG:-false}
+        expose:
+            - "5006"
+        volumes:
+            - binancecoin_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - binancecoin
+
+    bitcart-polygon:
+        container_name: bitcart-polygon
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: matic.Dockerfile
+        environment:
+            MATIC_NETWORK: ${MATIC_NETWORK:-mainnet}
+            # Default is the public endpoint shipped by upstream Bitcart; set MATIC_SERVER to your own RPC.
+            MATIC_SERVER: ${MATIC_SERVER:-https://polygon-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161}
+            MATIC_ARCHIVE_SERVER: ${MATIC_ARCHIVE_SERVER:-}
+            MATIC_DEBUG: ${MATIC_DEBUG:-false}
+        expose:
+            - "5008"
+        volumes:
+            - polygon_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - polygon
+
+    bitcart-tron:
+        container_name: bitcart-tron
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: trx.Dockerfile
+        environment:
+            TRX_NETWORK: ${TRX_NETWORK:-mainnet}
+            TRX_SERVER: ${TRX_SERVER:-https://rpc.ankr.com/http/tron}
+            TRX_DEBUG: ${TRX_DEBUG:-false}
+        expose:
+            - "5009"
+        volumes:
+            - tron_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - tron
+
+    bitcart-monero:
+        container_name: bitcart-monero
+        restart: unless-stopped
+        build:
+            context: ./coins
+            dockerfile: xmr.Dockerfile
+        environment:
+            XMR_NETWORK: ${XMR_NETWORK:-mainnet}
+            XMR_SERVER: ${XMR_SERVER:-https://node.sethforprivacy.com}
+            XMR_DEBUG: ${XMR_DEBUG:-false}
+        expose:
+            - "5011"
+        volumes:
+            - monero_datadir:/data
+        networks:
+            dmp-ntw:
+                aliases:
+                    - monero
+
+    bitcart-database:
+        container_name: bitcart-database
+        # Kept on major 12 so the existing data volume stays readable; see README for the upgrade path.
+        image: postgres:12-alpine
+        restart: unless-stopped
+        command: ["-c", "random_page_cost=1.0"]
+        environment:
+            POSTGRES_DB: bitcart
+            # Only reachable from the internal Docker network (no published port).
+            POSTGRES_HOST_AUTH_METHOD: trust
+        volumes:
+            - dbdata:/var/lib/postgresql/data
+        expose:
+            - "5432"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres -d bitcart"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+        networks:
+            - dmp-ntw
+
+    bitcart-redis:
+        container_name: bitcart-redis
+        image: redis:8-alpine
+        restart: unless-stopped
+        expose:
+            - "6379"
+        healthcheck:
+            test: ["CMD-SHELL", '[ "$$(redis-cli ping)" = "PONG" ]']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            dmp-ntw:
+                aliases:
+                    - redis
+
+networks:
+    dmp-ntw:
+        driver: bridge
+
+volumes:
+    bitcoin_datadir:
+    litecoin_datadir:
+    ethereum_datadir:
+    bitcoincash_datadir:
+    binancecoin_datadir:
+    polygon_datadir:
+    tron_datadir:
+    monero_datadir:
+    bitcart_datadir:
+    backup_datadir:
+    dbdata:

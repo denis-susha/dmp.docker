@@ -1,0 +1,24 @@
+{
+    "create": {
+        "name": "test",
+        "xpub": "tpubDC9zYPoSZUk5W8Rfaex3k324fi1hDLHapbSjPd4gbr7AE8MLSGEy76fNp5m6sVLBy9p2iTjRkiguVyb8iEHCdUBC7SXnhHdHMpXwFcrVMyA",
+        "label": "customlabel",
+        "hint": "test"
+    },
+    "patch": {
+        "name": "test1",
+        "xpub": "tpubDD1g867nDN1JyfNAjHNWrL2XNg98y6gM1W82C4nxqxGq5QPEFCtxYLFGgi7GrBwu4TczHRnwXic81BZ2FKBwmKvQdRJpNdfXPtAmtzBkD1A"
+    },
+    "response": {
+        "name": "test",
+        "xpub": "tpubDC9zYPoSZUk5W8Rfaex3k324fi1hDLHapbSjPd4gbr7AE8MLSGEy76fNp5m6sVLBy9p2iTjRkiguVyb8iEHCdUBC7SXnhHdHMpXwFcrVMyA",
+        "currency": "btc",
+        "balance": "0.00000000",
+        "label": "customlabel",
+        "hint": "test",
+        "lightning_enabled": false,
+        "additional_xpub_data": {},
+        "metadata": {}
+    },
+    "count": 1
+}

@@ -1,0 +1,27 @@
+# Production override: production environment names, build flavour and the production Redis config.
+
+services:
+    api.web-dmp:
+        environment:
+            ASPNETCORE_ENVIRONMENT: Production
+
+    job.invoiceworker-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Production
+
+    job.trxworker-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Production
+
+    job.server-dmp:
+        environment:
+            DOTNET_ENVIRONMENT: Production
+
+    nginx-dmp:
+        build:
+            args:
+                VAR_ENV: production
+
+    redis-dmp:
+        volumes:
+            - ./redis/master-redis.conf:/usr/local/etc/redis/redis-stack.conf:ro

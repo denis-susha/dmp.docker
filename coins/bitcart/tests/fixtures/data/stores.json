@@ -1,0 +1,45 @@
+{
+    "create": {
+        "name": "test"
+    },
+    "patch": {
+        "email": "test@example.com",
+        "email_port": 435,
+        "checkout_settings": {
+            "expiration": 60
+        }
+    },
+    "response": {
+        "email_settings": {
+            "address": "",
+            "host": "",
+            "port": 25,
+            "user": "",
+            "password": "",
+            "auth_mode": "starttls"
+        },
+        "name": "test",
+        "default_currency": "USD",
+        "checkout_settings": {
+            "custom_logo_link": "",
+            "expiration": 15,
+            "recommended_fee_target_blocks": 1,
+            "show_recommended_fee": true,
+            "transaction_speed": 0,
+            "underpaid_percentage": 0,
+            "use_dark_mode": false,
+            "use_html_templates": false,
+            "email_required": true,
+            "ask_address": false,
+            "randomize_wallet_selection": false,
+            "allow_anonymous_invoice_creation": true,
+            "include_network_fee": false,
+            "rate_rules": "",
+            "pos_screen_enabled": true
+        },
+        "notifications": [],
+        "templates": {},
+        "metadata": {}
+    },
+    "count": 1
+}

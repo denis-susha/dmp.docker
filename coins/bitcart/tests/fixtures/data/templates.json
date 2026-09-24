@@ -1,0 +1,16 @@
+{
+    "create": {
+        "name": "test",
+        "text": "Test {{template}}"
+    },
+    "patch": {
+        "name": "test2",
+        "text": "Test {{template1}}"
+    },
+    "response": {
+        "name": "test",
+        "text": "Test {{template}}",
+        "metadata": {}
+    },
+    "count": 1
+}

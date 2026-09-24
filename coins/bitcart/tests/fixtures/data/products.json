@@ -1,0 +1,24 @@
+{
+    "create": {
+        "name": "test",
+        "price": 0.5,
+        "quantity": 5
+    },
+    "patch": {
+        "download_url": "https://example.com",
+        "status": "disabled",
+        "name": "Test 2"
+    },
+    "response": {
+        "price": "0.50",
+        "description": "",
+        "quantity": 5,
+        "download_url": "",
+        "status": "active",
+        "name": "test",
+        "image": "",
+        "category": "",
+        "metadata": {}
+    },
+    "count": 1
+}

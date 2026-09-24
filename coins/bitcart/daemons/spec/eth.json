@@ -1,0 +1,84 @@
+{
+    "version": "4.5.0",
+    "electrum_map": {
+        "Procedure not found": -32601,
+        "wallet not loaded": -32000,
+        "error loading wallet": -32000,
+        "NotImplementedError": -32602,
+        "it must be a hex string": -32001,
+        "TransactionNotFound": -32002,
+        "The private key must be exactly": -32003,
+        "No message specified": -32004,
+        "Invalid key provided": -32005,
+        "Invalid private key imported: address mismatch": -32005,
+        "This is a watching-only wallet": -32006,
+        "This wallet has no seed words": -32007,
+        "Invalid transaction": -32008,
+        "Invalid contract address or non-ERC20 token": -32009,
+        "Contract ABI is missing": -32010,
+        "Invalid arguments for": -32011,
+        "Invalid mix of transaction fee params": -32012
+    },
+    "exceptions": {
+        "-32601": {
+            "exc_name": "ProcedureNotFoundError",
+            "docstring": "Procedure not found"
+        },
+        "-32602": {
+            "exc_name": "NotImplementedError",
+            "docstring": "Not implemented"
+        },
+        "-32000": {
+            "exc_name": "WalletNotLoadedError",
+            "docstring": "Wallet not loaded. No address was provided and this function requires wallet"
+        },
+        "-32001": {
+            "exc_name": "InvalidHexStringError",
+            "docstring": "Invalid hex string provided"
+        },
+        "-32002": {
+            "exc_name": "TxNotFoundError",
+            "docstring": "No such blockchain transaction"
+        },
+        "-32003": {
+            "exc_name": "PrivateKeyRequiredError",
+            "docstring": "This function requires signing capabilities, but no private key was provided"
+        },
+        "-32004": {
+            "exc_name": "NoMessageSpecifiedError",
+            "docstring": "Please specify a message to sign"
+        },
+        "-32005": {
+            "exc_name": "InvalidKeyProvidedError",
+            "docstring": "Invalid key provided. We support seed, private, public keys and address directly as a key"
+        },
+        "-32006": {
+            "exc_name": "WatchOnlyWalletError",
+            "docstring": "This is a watch-only wallet. Please restore from seed or private key to use wallet functions"
+        },
+        "-32007": {
+            "exc_name": "NoSeedError",
+            "docstring": "This wallet has no seed words. Please restore from seed"
+        },
+        "-32008": {
+            "exc_name": "InvalidTransactionError",
+            "docstring": "Invalid transaction"
+        },
+        "-32009": {
+            "exc_name": "InvalidContractAddressError",
+            "docstring": "Invalid contract address or non-ERC20 token"
+        },
+        "-32010": {
+            "exc_name": "NoSuchContractFunctionError",
+            "docstring": "Contract ABI is missing this function"
+        },
+        "-32011": {
+            "exc_name": "InvalidContractArgumentsError",
+            "docstring": "Invalid arguments for this contract function"
+        },
+        "-32012": {
+            "exc_name": "InvalidFeeParametersError",
+            "docstring": "Invalid mix of transaction fee params"
+        }
+    }
+}
